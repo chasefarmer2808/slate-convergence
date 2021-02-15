@@ -1,24 +1,53 @@
-import React from 'react';
-import logo from './logo.svg';
+import Convergence, { ConvergenceDomain, IConvergenceEvent, RealTimeModel, VersionChangedEvent } from '@convergence/convergence';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createEditor, Node } from 'slate';
+import { Editable, Slate, withReact } from 'slate-react';
 import './App.css';
 
 function App() {
+  const convergenceUrl = 'http://localhost:8000/api/realtime/convergence/default';
+  const [domain, setDomain] = useState<ConvergenceDomain>();
+  const [model, setModel] = useState<RealTimeModel>();
+  const [value, setValue] = useState<Node[]>([{
+    type: 'paragraph', children: [{ text: '' }]
+  }]);
+  useEffect(() => {
+    Convergence.connectAnonymously(convergenceUrl).then(domain => {
+      setDomain(domain);
+      return domain.models().openAutoCreate({
+        collection: 'notes',
+        id: 'test'
+      });
+    }).then((model: RealTimeModel) => {
+      console.log(model.root().value())
+      model.events().subscribe(e => {
+        if (e instanceof VersionChangedEvent) {
+          setValue(e.src.root().value().noteContent);
+        }
+      });
+      
+      setModel(model);
+      setValue(model.root().value().noteContent);
+    });
+
+    return domain?.dispose();
+  }, []);
+  const editor = useMemo(() => withReact(createEditor()), []);
+
+  const handleChange = (newValue: Node[]) => {
+    model?.root().set('noteContent', newValue);
+    setValue(newValue);
+  }
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+      <Slate
+        editor={editor}
+        value={value}
+        onChange={handleChange}
         >
-          Learn React
-        </a>
-      </header>
+          <Editable />
+        </Slate>
     </div>
   );
 }
