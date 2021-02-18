@@ -1,27 +1,65 @@
-import { ModelService, RealTimeArray, RealTimeElement, RealTimeModel, VersionChangedEvent } from "@convergence/convergence";
-import { Operation } from "slate";
+import { IConvergenceEvent, ModelService, RealTimeArray, RealTimeElement, RealTimeModel, RealTimeString, StringInsertEvent, StringRemoveEvent, VersionChangedEvent } from "@convergence/convergence";
+import { Editor, Operation, Path, TextOperation, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 
-export function withConvergence(editor: ReactEditor, docModel: RealTimeModel): ReactEditor {
-    docModel.events().subscribe(e => {
-        if (e instanceof VersionChangedEvent) {
-            console.log(e.src.root().value());
-        }
-    });
-    
+export interface ConvergenceEditor extends Editor {
+    isRemote: boolean;
+    isLocal: boolean;
+}
+
+export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeModel): T & ConvergenceEditor {
+    const convEditor = editor as T & ConvergenceEditor;
+    convEditor.isLocal = false;
+    convEditor.isRemote = false;
+
+    docModel.elementAt('note')
+        .on(StringInsertEvent.NAME, e => {
+            if (convEditor.isLocal) {
+                return;
+            }
+
+            convEditor.isRemote = true;
+
+            const insertEvent = e as StringInsertEvent
+
+            const insertTextOp: TextOperation = {
+                type: 'insert_text',
+                offset: insertEvent.index,
+                text: insertEvent.value,
+                path: [0, 0]
+            }
+            editor.apply(insertTextOp);
+        })
+        .on(StringRemoveEvent.NAME, e => {
+            if (convEditor.isLocal) {
+                return;
+            }
+
+            const removeEvent = e as StringRemoveEvent;
+
+            const removeTextOp: TextOperation = {
+                type: 'remove_text',
+                offset: removeEvent.index,
+                text: removeEvent.value,
+                path: [0, 0]
+            }
+            editor.apply(removeTextOp);
+        });
+
     const { onChange } = editor;
 
     editor.onChange = () => {
-        console.log(editor.operations)
-        // docModel.root().set('noteContent', editor.children);
-        const operations: RealTimeArray = docModel.elementAt('operations') as RealTimeArray;
+        if (!convEditor.isRemote) {
+            convEditor.isLocal = true;
 
-        if (operations.value() === undefined) {
-            // First time editing the document, so init the real time array.
-            docModel.root().set('operations', editor.operations);
-        } else {
-            // Operations already exist from other clients, so append to that real time array.
-            operations.insert(operations.value().length - 1, editor.operations);
+            let syncedNote: RealTimeString = docModel.elementAt('note') as RealTimeString;
+
+            if (syncedNote.value() === undefined) {
+                docModel.root().set('note', '');
+                syncedNote = docModel.elementAt('note') as RealTimeString;
+            }
+    
+            editor.operations.reduce(applyText, syncedNote)
         }
 
         if (onChange) {
@@ -29,5 +67,16 @@ export function withConvergence(editor: ReactEditor, docModel: RealTimeModel): R
         }
     };
 
-    return editor;
+    return convEditor;
+}
+
+function applyText(doc: RealTimeString, op: Operation): any {
+    if (op.type === 'insert_text') {
+        doc.insert(op.offset, op.text);
+    }
+
+    if (op.type === 'remove_text') {
+        console.log('removing')
+        doc.remove(op.offset as number, op.text.length);
+    }
 }
