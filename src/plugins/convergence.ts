@@ -55,6 +55,7 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
             let syncedNote: RealTimeString = docModel.elementAt('note') as RealTimeString;
 
             if (syncedNote.value() === undefined) {
+                console.log('here')
                 docModel.root().set('note', '');
                 syncedNote = docModel.elementAt('note') as RealTimeString;
             }
@@ -70,13 +71,15 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
     return convEditor;
 }
 
-function applyText(doc: RealTimeString, op: Operation): any {
+function applyText(doc: RealTimeString, op: Operation): RealTimeString {
+    console.log(op)
     if (op.type === 'insert_text') {
         doc.insert(op.offset, op.text);
     }
 
     if (op.type === 'remove_text') {
-        console.log('removing')
         doc.remove(op.offset as number, op.text.length);
     }
+
+    return doc;
 }
