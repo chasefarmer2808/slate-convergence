@@ -30,14 +30,12 @@ const Client: React.FC<ClientProps> = ({ id, name, slug, removeUser }) => {
   ]);
   const [isOnline, setOnlineState] = useState<boolean>(false);
   const [docModel, setDocModel] = useState<RealTimeModel>();
-  const [username, setUsername] = useState<string>();
 
   useEffect(() => {
     let convergeDomain: ConvergenceDomain;
     Convergence.connectAnonymously(CONVERGENCE_URL)
       .then((domain) => {
         convergeDomain = domain;
-        setUsername(domain.session().user().username);
         return domain.models().openAutoCreate({
           collection: "notes",
           id: "test",
