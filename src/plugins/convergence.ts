@@ -35,6 +35,8 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
                 return;
             }
 
+            convEditor.isRemote = true;
+
             const removeEvent = e as StringRemoveEvent;
 
             const removeTextOp: TextOperation = {
