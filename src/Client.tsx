@@ -4,13 +4,13 @@ import Convergence, {
   VersionChangedEvent,
 } from "@convergence/convergence";
 import styled from "@emotion/styled";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createEditor, Editor, Node } from "slate";
 import { withHistory } from "slate-history";
 import { ReactEditor, withReact } from "slate-react";
 import { Button, H4, Instance, Title } from "./Components";
 import EditorFrame from "./EditorFrame";
-import { withConvergence } from "./plugins/convergence";
+import { ConvergenceEditor, withConvergence } from "./plugins/convergence";
 import { withLinks } from "./plugins/link";
 
 interface ClientProps {
@@ -24,7 +24,7 @@ const CONVERGENCE_URL =
   "http://localhost:8000/api/realtime/convergence/default";
 
 const Client: React.FC<ClientProps> = ({ id, name, slug, removeUser }) => {
-  const [editor, setEditor] = useState<ReactEditor>();
+  const editorRef = useRef<ReactEditor>();
   const [value, setValue] = useState<Node[]>([
     { type: "paragraph", children: [{ text: "" }] },
   ]);
@@ -39,16 +39,15 @@ const Client: React.FC<ClientProps> = ({ id, name, slug, removeUser }) => {
         return domain.models().openAutoCreate({
           collection: "notes",
           id: "test",
+          ephemeral: true,
         });
       })
       .then((model: RealTimeModel) => {
         setDocModel(model);
 
-        setEditor(
-          withConvergence(
-            withLinks(withReact(withHistory(createEditor()))),
-            model
-          )
+        editorRef.current = withConvergence(
+          withLinks(withReact(withHistory(createEditor()))),
+          model
         );
 
         if (model.elementAt("note").value() !== undefined) {
@@ -63,12 +62,6 @@ const Client: React.FC<ClientProps> = ({ id, name, slug, removeUser }) => {
 
     return () => convergeDomain?.dispose();
   }, []);
-
-  // Hack workaround for fixing hot reload Slate error.
-  const debug: any = {};
-  debug.callFunc = () => false;
-  const useFunc = () => () => true;
-  debug.callFunc = useFunc();
 
   // TODO
   const toggleOnline = () => {};
@@ -86,9 +79,9 @@ const Client: React.FC<ClientProps> = ({ id, name, slug, removeUser }) => {
           </Button>
         </div>
       </Title>
-      {editor ? (
+      {editorRef.current ? (
         <EditorFrame
-          editor={editor}
+          editor={editorRef.current}
           value={value}
           onChange={(value: Node[]) => setValue(value)}
         />
