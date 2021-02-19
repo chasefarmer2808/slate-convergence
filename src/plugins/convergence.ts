@@ -72,7 +72,6 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
 }
 
 function applyText(doc: RealTimeString, op: Operation): RealTimeString {
-    console.log(op)
     if (op.type === 'insert_text') {
         doc.insert(op.offset, op.text);
     }

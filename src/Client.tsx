@@ -66,6 +66,12 @@ const Client: React.FC<ClientProps> = ({ id, name, slug, removeUser }) => {
     return () => convergeDomain?.dispose();
   }, []);
 
+  // Hack workaround for fixing hot reload Slate error.
+  const debug: any = {};
+  debug.callFunc = () => false;
+  const useFunc = () => () => true;
+  debug.callFunc = useFunc();
+
   // TODO
   const toggleOnline = () => {};
 
