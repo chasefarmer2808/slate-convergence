@@ -1,6 +1,10 @@
+import Convergence, {
+  ConvergenceDomain,
+  RealTimeModel,
+} from "@convergence/convergence";
 import faker from "faker";
 import debounce from "lodash/debounce";
-import React, { ChangeEvent, useState } from "react";
+import React, { ChangeEvent, useEffect, useState } from "react";
 import Client from "./Client";
 import { Button, Grid, H4, Input, RoomWrapper, Title } from "./Components";
 
@@ -19,10 +23,31 @@ const createUser = (): User => ({
   name: `${faker.name.firstName()} ${faker.name.lastName()}`,
 });
 
+const CONVERGENCE_URL =
+  "http://localhost:8000/api/realtime/convergence/default";
+
 const Room: React.FC<RoomProps> = ({ slug, removeRoom }) => {
   const [users, setUsers] = useState<User[]>([createUser(), createUser()]);
   const [roomSlug, setRoomSlug] = useState<string>(slug);
   const [isRemounted, setRemountState] = useState(false);
+  const [docModel, setDocModel] = useState<RealTimeModel>();
+
+  useEffect(() => {
+    let convergeDomain: ConvergenceDomain;
+    Convergence.connectAnonymously(CONVERGENCE_URL)
+      .then((domain) => {
+        convergeDomain = domain;
+        return domain.models().openAutoCreate({
+          collection: "notes",
+          id: "test",
+        });
+      })
+      .then((model: RealTimeModel) => {
+        setDocModel(model);
+      });
+
+    return () => convergeDomain?.dispose();
+  }, []);
 
   const remount = debounce(() => {
     setRemountState(true);
@@ -53,14 +78,15 @@ const Room: React.FC<RoomProps> = ({ slug, removeRoom }) => {
       </Title>
       <Grid>
         {users.map((user: User) =>
-          isRemounted ? null : (
+          isRemounted ? null : docModel ? (
             <Client
               {...user}
               slug={roomSlug}
               key={user.id}
+              docModel={docModel}
               removeUser={removeUser}
             />
-          )
+          ) : null
         )}
       </Grid>
     </RoomWrapper>

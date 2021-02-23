@@ -4,6 +4,7 @@ import Convergence, {
   VersionChangedEvent,
 } from "@convergence/convergence";
 import styled from "@emotion/styled";
+import { create } from "lodash";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createEditor, Editor, Node } from "slate";
 import { withHistory } from "slate-history";
@@ -17,54 +18,27 @@ interface ClientProps {
   name: string;
   id: string;
   slug: string;
+  docModel: RealTimeModel;
   removeUser: (id: any) => void;
 }
 
-const CONVERGENCE_URL =
-  "http://localhost:8000/api/realtime/convergence/default";
-
-const Client: React.FC<ClientProps> = ({ id, name, slug, removeUser }) => {
-  // const editorRef = useRef<ReactEditor>();
-  const [editor, setEditor] = useState<ReactEditor>();
+const Client: React.FC<ClientProps> = ({
+  id,
+  name,
+  slug,
+  docModel,
+  removeUser,
+}) => {
   const [value, setValue] = useState<Node[]>([
-    { type: "paragraph", children: [{ text: "" }] },
+    {
+      type: "paragraph",
+      children: [{ text: "" }],
+    },
   ]);
   const [isOnline, setOnlineState] = useState<boolean>(false);
-  const [docModel, setDocModel] = useState<RealTimeModel>();
-
-  useEffect(() => {
-    let convergeDomain: ConvergenceDomain;
-    Convergence.connectAnonymously(CONVERGENCE_URL)
-      .then((domain) => {
-        convergeDomain = domain;
-        return domain.models().openAutoCreate({
-          collection: "notes",
-          id: "test",
-          ephemeral: true,
-        });
-      })
-      .then((model: RealTimeModel) => {
-        setDocModel(model);
-
-        setEditor(withConvergence(
-          withLinks(withReact(withHistory(createEditor()))),
-          model
-        ));
-
-        // if (model.elementAt("note").value() !== undefined) {
-        //   setValue([
-        //     {
-        //       type: "paragraph",
-        //       children: [{ text: model.elementAt("note").value() }],
-        //     },
-        //   ]);
-        // }
-        // TODO: Initialize editor content.
-      });
-
-    return () => convergeDomain?.dispose();
-  }, []);
-
+  const editor = useRef<ReactEditor>(
+    withConvergence(withLinks(withReact(withHistory(createEditor()))), docModel)
+  );
   // TODO
   const toggleOnline = () => {};
 
@@ -81,15 +55,11 @@ const Client: React.FC<ClientProps> = ({ id, name, slug, removeUser }) => {
           </Button>
         </div>
       </Title>
-      {editor ? (
-        <EditorFrame
-          editor={editor}
-          value={value}
-          onChange={(value: Node[]) => setValue(value)}
-        />
-      ) : (
-        ""
-      )}
+      <EditorFrame
+        editor={editor.current}
+        value={value}
+        onChange={(value: Node[]) => setValue(value)}
+      />
     </Instance>
   );
 };

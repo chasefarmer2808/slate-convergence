@@ -17,20 +17,22 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
     convEditor.isRemote = false;
 
     // Set the initial value of the editor with the real time model.
-    Editor.withoutNormalizing(editor, () => {
-        const syncedContent = docModel.elementAt('content');
+    setTimeout(() => {
+        Editor.withoutNormalizing(editor, () => {
+            const syncedContent = docModel.elementAt('content');
 
-        if (syncedContent.value() !== undefined) {
-            const elements = (docModel.elementAt('content') as RealTimeArray).value();
-            const nodes = elements.map(toSlateNode)
-            console.log(nodes);
-            editor.children = nodes;
-        } else {
-            // Need to set some initial content.
-            docModel.root().set('content', [{type: 'paragraph', children: [{text: ""}]}]);
-        }
+            if (syncedContent.value() !== undefined) {
+                const elements = (docModel.elementAt('content') as RealTimeArray).value();
+                const nodes = elements.map(toSlateNode)
+                editor.children = nodes;
+            } else {
+                // Need to set some initial content.
+                // FIXME: For some reason, this is creating an empty node object.
+                docModel.root().set('content', [{type: 'paragraph', children: [{text: ""}]}]);
+            }
 
-        editor.onChange();
+            editor.onChange();
+        });
     });
 
     docModel.elementAt('content')
@@ -74,21 +76,7 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
     editor.onChange = () => {
         if (!convEditor.isRemote) {
             convEditor.isLocal = true;
-
-            // let syncedNote: RealTimeString = docModel.elementAt('note') as RealTimeString;
-
-            // if (syncedNote.value() === undefined) {
-            //     docModel.root().set('note', '');
-            //     syncedNote = docModel.elementAt('note') as RealTimeString;
-            // }
-
             let syncedRoot: RealTimeArray = docModel.elementAt('content') as RealTimeArray;
-
-            // if (syncedRoot.value() === undefined) {
-            //     docModel.root().set('content', [{children: [{text: ""}]}]);
-            //     syncedRoot = docModel.elementAt('content') as RealTimeArray;
-            // }
-    
             editor.operations.reduce(applyOp, syncedRoot)
         }
 
@@ -101,7 +89,6 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
 }
 
 function toSlateNode(element: SyncNode): Node {
-    console.log(element)
     const text = element.text;
     const children = element.children;
     const node: Partial<Node> = {};
@@ -141,7 +128,6 @@ function applyOp(doc: RealTimeArray, op: Operation): RealTimeArray {
         case 'insert_text':
             // First, get the index of the node within the array.
             const node = getTargetNode(doc, op.path);
-            console.log(node.toJSON());
             // Then, cast it to a RealTimeString.
             const nodeText = (node as RealTimeObject).get('text') as RealTimeString;
             // Then, insert the text into the RealTimeString.
@@ -156,7 +142,6 @@ function applyOp(doc: RealTimeArray, op: Operation): RealTimeArray {
 
 function getTargetNode(doc: RealTimeArray, path: Path): RealTimeElement {
     function iterate(current: RealTimeElement, index: number) {
-        console.log(current.toJSON())
         let children: RealTimeArray;
 
         if (current instanceof RealTimeArray) {
@@ -164,7 +149,6 @@ function getTargetNode(doc: RealTimeArray, path: Path): RealTimeElement {
         } else {
             children = (current as RealTimeObject).get('children') as RealTimeArray;
         }
-        console.log(children.toJSON())
 
         return children.get(index);
     }
