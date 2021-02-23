@@ -41,7 +41,7 @@ const Room: React.FC<RoomProps> = ({ slug, removeRoom }) => {
           collection: "notes",
           id: "test",
           data: {
-            content: [{ type: "paragraph", children: [{ text: "Hello" }] }], // FIXME: Setting text to empty string causes crash on fresh init.
+            content: [{ type: "paragraph", children: [{ text: "" }] }],
           },
         });
       })

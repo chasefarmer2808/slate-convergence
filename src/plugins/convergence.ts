@@ -1,4 +1,4 @@
-import { ModelChangedEvent, RealTimeArray, RealTimeElement, RealTimeModel, RealTimeObject, RealTimeString, StringInsertEvent, StringRemoveEvent } from "@convergence/convergence";
+import Convergence, { ModelChangedEvent, RealTimeArray, RealTimeElement, RealTimeModel, RealTimeObject, RealTimeString, StringInsertEvent, StringRemoveEvent } from "@convergence/convergence";
 import { Editor, Operation, Path, TextOperation, Node } from "slate";
 
 export interface ConvergenceEditor extends Editor {
@@ -14,14 +14,14 @@ interface SyncNode {
 
 export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeModel): T & ConvergenceEditor {
     const convEditor = editor as T & ConvergenceEditor;
-    convEditor.doc = docModel.root().get('content') as RealTimeArray;
+    convEditor.doc = docModel.elementAt('content') as RealTimeArray;
     convEditor.isLocal = false;
     convEditor.isRemote = false;
 
     // Set the initial value of the editor with the real time model.
     setTimeout(() => {
         Editor.withoutNormalizing(editor, () => {
-            const elements = (docModel.elementAt('content') as RealTimeArray).value();
+            const elements = convEditor.doc.value();
             const nodes = elements.map(toSlateNode)
             editor.children = nodes;
 
@@ -29,44 +29,44 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
         });
     });
 
-    convEditor.doc
-        .on(ModelChangedEvent.NAME, e => {
-            console.log(e)
-        })
-        .on(StringInsertEvent.NAME, e => {
-            if (convEditor.isLocal) {
-                return;
-            }
+    // convEditor.doc
+    //     .on(ModelChangedEvent.NAME, e => {
+    //         console.log(e)
+    //     })
+    //     .on(StringInsertEvent.NAME, e => {
+    //         if (convEditor.isLocal) {
+    //             return;
+    //         }
 
-            convEditor.isRemote = true;
+    //         convEditor.isRemote = true;
 
-            const insertEvent = e as StringInsertEvent
+    //         const insertEvent = e as StringInsertEvent
 
-            const insertTextOp: TextOperation = {
-                type: 'insert_text',
-                offset: insertEvent.index,
-                text: insertEvent.value,
-                path: [0, 0]
-            }
-            editor.apply(insertTextOp);
-        })
-        .on(StringRemoveEvent.NAME, e => {
-            if (convEditor.isLocal) {
-                return;
-            }
+    //         const insertTextOp: TextOperation = {
+    //             type: 'insert_text',
+    //             offset: insertEvent.index,
+    //             text: insertEvent.value,
+    //             path: [0, 0]
+    //         }
+    //         editor.apply(insertTextOp);
+    //     })
+    //     .on(StringRemoveEvent.NAME, e => {
+    //         if (convEditor.isLocal) {
+    //             return;
+    //         }
 
-            convEditor.isRemote = true;
+    //         convEditor.isRemote = true;
 
-            const removeEvent = e as StringRemoveEvent;
+    //         const removeEvent = e as StringRemoveEvent;
 
-            const removeTextOp: TextOperation = {
-                type: 'remove_text',
-                offset: removeEvent.index,
-                text: removeEvent.value,
-                path: [0, 0]
-            }
-            editor.apply(removeTextOp);
-        });
+    //         const removeTextOp: TextOperation = {
+    //             type: 'remove_text',
+    //             offset: removeEvent.index,
+    //             text: removeEvent.value,
+    //             path: [0, 0]
+    //         }
+    //         editor.apply(removeTextOp);
+    //     });
 
     const { onChange } = editor;
 
@@ -89,7 +89,7 @@ function toSlateNode(element: SyncNode): Node {
     const children = element.children;
     const node: Partial<Node> = {};
 
-    if (text) {
+    if (text !== undefined) {
         node.text = text;
     }
 
@@ -128,7 +128,6 @@ function applyOp(doc: RealTimeArray, op: Operation): RealTimeArray {
             const nodeText = (node as RealTimeObject).get('text') as RealTimeString;
             // Then, insert the text into the RealTimeString.
             nodeText.insert(op.offset, op.text);
-
             break;
         default:
             break;
