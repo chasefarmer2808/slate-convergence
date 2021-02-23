@@ -1,10 +1,14 @@
-import { IConvergenceEvent, ModelService, RealTimeArray, RealTimeElement, RealTimeModel, RealTimeString, StringInsertEvent, StringRemoveEvent, VersionChangedEvent } from "@convergence/convergence";
-import { Editor, Operation, Path, TextOperation, Transforms } from "slate";
-import { ReactEditor } from "slate-react";
+import { RealTimeArray, RealTimeElement, RealTimeModel, RealTimeObject, RealTimeString, StringInsertEvent, StringRemoveEvent } from "@convergence/convergence";
+import { Editor, Operation, Path, TextOperation, Node } from "slate";
 
 export interface ConvergenceEditor extends Editor {
     isRemote: boolean;
     isLocal: boolean;
+}
+
+interface SyncNode {
+    text?: string;
+    children?: SyncNode[];
 }
 
 export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeModel): T & ConvergenceEditor {
@@ -12,7 +16,24 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
     convEditor.isLocal = false;
     convEditor.isRemote = false;
 
-    docModel.elementAt('note')
+    // Set the initial value of the editor with the real time model.
+    Editor.withoutNormalizing(editor, () => {
+        const syncedContent = docModel.elementAt('content');
+
+        if (syncedContent.value() !== undefined) {
+            const elements = (docModel.elementAt('content') as RealTimeArray).value();
+            const nodes = elements.map(toSlateNode)
+            console.log(nodes);
+            editor.children = nodes;
+        } else {
+            // Need to set some initial content.
+            docModel.root().set('content', [{type: 'paragraph', children: [{text: ""}]}]);
+        }
+
+        editor.onChange();
+    });
+
+    docModel.elementAt('content')
         .on(StringInsertEvent.NAME, e => {
             if (convEditor.isLocal) {
                 return;
@@ -54,15 +75,21 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
         if (!convEditor.isRemote) {
             convEditor.isLocal = true;
 
-            let syncedNote: RealTimeString = docModel.elementAt('note') as RealTimeString;
+            // let syncedNote: RealTimeString = docModel.elementAt('note') as RealTimeString;
 
-            if (syncedNote.value() === undefined) {
-                console.log('here')
-                docModel.root().set('note', '');
-                syncedNote = docModel.elementAt('note') as RealTimeString;
-            }
+            // if (syncedNote.value() === undefined) {
+            //     docModel.root().set('note', '');
+            //     syncedNote = docModel.elementAt('note') as RealTimeString;
+            // }
+
+            let syncedRoot: RealTimeArray = docModel.elementAt('content') as RealTimeArray;
+
+            // if (syncedRoot.value() === undefined) {
+            //     docModel.root().set('content', [{children: [{text: ""}]}]);
+            //     syncedRoot = docModel.elementAt('content') as RealTimeArray;
+            // }
     
-            editor.operations.reduce(applyText, syncedNote)
+            editor.operations.reduce(applyOp, syncedRoot)
         }
 
         if (onChange) {
@@ -73,7 +100,31 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
     return convEditor;
 }
 
+function toSlateNode(element: SyncNode): Node {
+    console.log(element)
+    const text = element.text;
+    const children = element.children;
+    const node: Partial<Node> = {};
+
+    if (text) {
+        node.text = text;
+    }
+
+    if (children) {
+        node.children = children.map(toSlateNode);
+    }
+
+    Object.entries(element).forEach(([key, value]) => {
+        if (key !== 'children' && key !== 'text') {
+          node[key] = value;
+        }
+      });
+
+    return node as Node;
+}
+
 function applyText(doc: RealTimeString, op: Operation): RealTimeString {
+    console.log(op.path);
     if (op.type === 'insert_text') {
         doc.insert(op.offset, op.text);
     }
@@ -83,4 +134,40 @@ function applyText(doc: RealTimeString, op: Operation): RealTimeString {
     }
 
     return doc;
+}
+
+function applyOp(doc: RealTimeArray, op: Operation): RealTimeArray {
+    switch (op.type) {
+        case 'insert_text':
+            // First, get the index of the node within the array.
+            const node = getTargetNode(doc, op.path);
+            console.log(node.toJSON());
+            // Then, cast it to a RealTimeString.
+            const nodeText = (node as RealTimeObject).get('text') as RealTimeString;
+            // Then, insert the text into the RealTimeString.
+            nodeText.insert(op.offset, op.text);
+            break;
+        default:
+            break;
+    }
+
+    return doc;
+}
+
+function getTargetNode(doc: RealTimeArray, path: Path): RealTimeElement {
+    function iterate(current: RealTimeElement, index: number) {
+        console.log(current.toJSON())
+        let children: RealTimeArray;
+
+        if (current instanceof RealTimeArray) {
+            children = current;
+        } else {
+            children = (current as RealTimeObject).get('children') as RealTimeArray;
+        }
+        console.log(children.toJSON())
+
+        return children.get(index);
+    }
+
+    return path.reduce<RealTimeElement>(iterate, doc);
 }

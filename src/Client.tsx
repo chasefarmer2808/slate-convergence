@@ -24,7 +24,8 @@ const CONVERGENCE_URL =
   "http://localhost:8000/api/realtime/convergence/default";
 
 const Client: React.FC<ClientProps> = ({ id, name, slug, removeUser }) => {
-  const editorRef = useRef<ReactEditor>();
+  // const editorRef = useRef<ReactEditor>();
+  const [editor, setEditor] = useState<ReactEditor>();
   const [value, setValue] = useState<Node[]>([
     { type: "paragraph", children: [{ text: "" }] },
   ]);
@@ -45,19 +46,20 @@ const Client: React.FC<ClientProps> = ({ id, name, slug, removeUser }) => {
       .then((model: RealTimeModel) => {
         setDocModel(model);
 
-        editorRef.current = withConvergence(
+        setEditor(withConvergence(
           withLinks(withReact(withHistory(createEditor()))),
           model
-        );
+        ));
 
-        if (model.elementAt("note").value() !== undefined) {
-          setValue([
-            {
-              type: "paragraph",
-              children: [{ text: model.elementAt("note").value() }],
-            },
-          ]);
-        }
+        // if (model.elementAt("note").value() !== undefined) {
+        //   setValue([
+        //     {
+        //       type: "paragraph",
+        //       children: [{ text: model.elementAt("note").value() }],
+        //     },
+        //   ]);
+        // }
+        // TODO: Initialize editor content.
       });
 
     return () => convergeDomain?.dispose();
@@ -79,9 +81,9 @@ const Client: React.FC<ClientProps> = ({ id, name, slug, removeUser }) => {
           </Button>
         </div>
       </Title>
-      {editorRef.current ? (
+      {editor ? (
         <EditorFrame
-          editor={editorRef.current}
+          editor={editor}
           value={value}
           onChange={(value: Node[]) => setValue(value)}
         />
