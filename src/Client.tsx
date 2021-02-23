@@ -1,17 +1,12 @@
-import Convergence, {
-  ConvergenceDomain,
-  RealTimeModel,
-  VersionChangedEvent,
-} from "@convergence/convergence";
+import Convergence, { RealTimeModel } from "@convergence/convergence";
 import styled from "@emotion/styled";
-import { create } from "lodash";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { createEditor, Editor, Node } from "slate";
+import React, { useRef, useState } from "react";
+import { createEditor, Node } from "slate";
 import { withHistory } from "slate-history";
 import { ReactEditor, withReact } from "slate-react";
 import { Button, H4, Instance, Title } from "./Components";
 import EditorFrame from "./EditorFrame";
-import { ConvergenceEditor, withConvergence } from "./plugins/convergence";
+import { withConvergence } from "./plugins/convergence";
 import { withLinks } from "./plugins/link";
 
 interface ClientProps {
