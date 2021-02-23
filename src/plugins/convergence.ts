@@ -1,7 +1,8 @@
-import { RealTimeArray, RealTimeElement, RealTimeModel, RealTimeObject, RealTimeString, StringInsertEvent, StringRemoveEvent } from "@convergence/convergence";
+import { ModelChangedEvent, RealTimeArray, RealTimeElement, RealTimeModel, RealTimeObject, RealTimeString, StringInsertEvent, StringRemoveEvent } from "@convergence/convergence";
 import { Editor, Operation, Path, TextOperation, Node } from "slate";
 
 export interface ConvergenceEditor extends Editor {
+    doc: RealTimeArray;
     isRemote: boolean;
     isLocal: boolean;
 }
@@ -13,29 +14,25 @@ interface SyncNode {
 
 export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeModel): T & ConvergenceEditor {
     const convEditor = editor as T & ConvergenceEditor;
+    convEditor.doc = docModel.root().get('content') as RealTimeArray;
     convEditor.isLocal = false;
     convEditor.isRemote = false;
 
     // Set the initial value of the editor with the real time model.
     setTimeout(() => {
         Editor.withoutNormalizing(editor, () => {
-            const syncedContent = docModel.elementAt('content');
-
-            if (syncedContent.value() !== undefined) {
-                const elements = (docModel.elementAt('content') as RealTimeArray).value();
-                const nodes = elements.map(toSlateNode)
-                editor.children = nodes;
-            } else {
-                // Need to set some initial content.
-                // FIXME: For some reason, this is creating an empty node object.
-                docModel.root().set('content', [{type: 'paragraph', children: [{text: ""}]}]);
-            }
+            const elements = (docModel.elementAt('content') as RealTimeArray).value();
+            const nodes = elements.map(toSlateNode)
+            editor.children = nodes;
 
             editor.onChange();
         });
     });
 
-    docModel.elementAt('content')
+    convEditor.doc
+        .on(ModelChangedEvent.NAME, e => {
+            console.log(e)
+        })
         .on(StringInsertEvent.NAME, e => {
             if (convEditor.isLocal) {
                 return;
@@ -76,8 +73,7 @@ export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeM
     editor.onChange = () => {
         if (!convEditor.isRemote) {
             convEditor.isLocal = true;
-            let syncedRoot: RealTimeArray = docModel.elementAt('content') as RealTimeArray;
-            editor.operations.reduce(applyOp, syncedRoot)
+            editor.operations.reduce(applyOp, convEditor.doc)
         }
 
         if (onChange) {
@@ -132,6 +128,7 @@ function applyOp(doc: RealTimeArray, op: Operation): RealTimeArray {
             const nodeText = (node as RealTimeObject).get('text') as RealTimeString;
             // Then, insert the text into the RealTimeString.
             nodeText.insert(op.offset, op.text);
+
             break;
         default:
             break;

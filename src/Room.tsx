@@ -40,13 +40,20 @@ const Room: React.FC<RoomProps> = ({ slug, removeRoom }) => {
         return domain.models().openAutoCreate({
           collection: "notes",
           id: "test",
+          data: {
+            content: [{ type: "paragraph", children: [{ text: "Hello" }] }], // FIXME: Setting text to empty string causes crash on fresh init.
+          },
         });
       })
       .then((model: RealTimeModel) => {
         setDocModel(model);
       });
 
-    return () => convergeDomain?.dispose();
+    return () => {
+      docModel?.close().then(() => {
+        convergeDomain?.dispose();
+      });
+    };
   }, []);
 
   const remount = debounce(() => {
