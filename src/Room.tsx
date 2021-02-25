@@ -42,6 +42,7 @@ const Room: React.FC<RoomProps> = ({ slug, removeRoom }) => {
           id: "test",
           data: {
             content: [{ type: "paragraph", children: [{ text: "" }] }],
+            ops: []
           },
         });
       })

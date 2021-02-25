@@ -1,11 +1,13 @@
 import Convergence, { RealTimeModel } from "@convergence/convergence";
 import styled from "@emotion/styled";
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { createEditor, Node } from "slate";
 import { withHistory } from "slate-history";
 import { ReactEditor, withReact } from "slate-react";
 import { Button, H4, Instance, Title } from "./Components";
 import EditorFrame from "./EditorFrame";
+// @refresh reset
+
 import { withConvergence } from "./plugins/convergence";
 import { withLinks } from "./plugins/link";
 
@@ -31,9 +33,9 @@ const Client: React.FC<ClientProps> = ({
     },
   ]);
   const [isOnline, setOnlineState] = useState<boolean>(false);
-  const editor = useRef<ReactEditor>(
-    withConvergence(withLinks(withReact(withHistory(createEditor()))), docModel)
-  );
+  const editor = useMemo<ReactEditor>(() => {
+    return withConvergence(withLinks(withReact(withHistory(createEditor()))), docModel);
+  }, []);
   // TODO
   const toggleOnline = () => {};
 
@@ -51,7 +53,7 @@ const Client: React.FC<ClientProps> = ({
         </div>
       </Title>
       <EditorFrame
-        editor={editor.current}
+        editor={editor}
         value={value}
         onChange={(value: Node[]) => setValue(value)}
       />

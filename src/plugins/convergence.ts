@@ -3,6 +3,7 @@ import { Editor, Operation, Path, TextOperation, Node } from "slate";
 
 export interface ConvergenceEditor extends Editor {
     doc: RealTimeArray;
+    ops: RealTimeArray;
     isRemote: boolean;
     isLocal: boolean;
 }
@@ -13,67 +14,36 @@ interface SyncNode {
 }
 
 export function withConvergence<T extends Editor>(editor: T, docModel: RealTimeModel): T & ConvergenceEditor {
+    console.log('here')
     const convEditor = editor as T & ConvergenceEditor;
     convEditor.doc = docModel.elementAt('content') as RealTimeArray;
+    convEditor.ops = docModel.elementAt('ops') as RealTimeArray;
     convEditor.isLocal = false;
     convEditor.isRemote = false;
 
     // Set the initial value of the editor with the real time model.
-    setTimeout(() => {
-        Editor.withoutNormalizing(editor, () => {
-            const elements = convEditor.doc.value();
-            const nodes = elements.map(toSlateNode)
-            editor.children = nodes;
+    const initialOps = convEditor.ops.value() as Operation[];
 
-            editor.onChange();
-        });
-    });
 
-    // convEditor.doc
-    //     .on(ModelChangedEvent.NAME, e => {
-    //         console.log(e)
-    //     })
-    //     .on(StringInsertEvent.NAME, e => {
-    //         if (convEditor.isLocal) {
-    //             return;
-    //         }
-
-    //         convEditor.isRemote = true;
-
-    //         const insertEvent = e as StringInsertEvent
-
-    //         const insertTextOp: TextOperation = {
-    //             type: 'insert_text',
-    //             offset: insertEvent.index,
-    //             text: insertEvent.value,
-    //             path: [0, 0]
-    //         }
-    //         editor.apply(insertTextOp);
-    //     })
-    //     .on(StringRemoveEvent.NAME, e => {
-    //         if (convEditor.isLocal) {
-    //             return;
-    //         }
-
-    //         convEditor.isRemote = true;
-
-    //         const removeEvent = e as StringRemoveEvent;
-
-    //         const removeTextOp: TextOperation = {
-    //             type: 'remove_text',
-    //             offset: removeEvent.index,
-    //             text: removeEvent.value,
-    //             path: [0, 0]
-    //         }
-    //         editor.apply(removeTextOp);
+    console.log('done initing')
+    // setTimeout(() => {
+    //     Editor.withoutNormalizing(editor, () => {
+    //        convEditor.ops.forEach(op => {
+    //            editor.apply(op.value());
+    //        });
     //     });
+    // });
 
     const { onChange } = editor;
 
     editor.onChange = () => {
         if (!convEditor.isRemote) {
             convEditor.isLocal = true;
-            editor.operations.reduce(applyOp, convEditor.doc)
+            // editor.operations.reduce(applyOp, convEditor.doc)
+            editor.operations.forEach(op => {
+                console.log(op)
+                convEditor.ops.push(op)
+            });
         }
 
         if (onChange) {
